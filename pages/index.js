@@ -139,8 +139,9 @@ const Duration = {
   MEDIUM_TERM: 'medium_term',
   LONG_TERM: 'long_term',
   HUNDRED_SONGS: 100,
-  FIVEHUNDRED_SONGS: 500,
-  ALLTIME_SONGS: true
+  TWOFIFTY_SONGS: 250,
+  FIVEHUNDRED_SONGS: 500//,
+  //ALLTIME_SONGS: true
   // LIKED_SONGS: // TODO: FIND 
 };
 
@@ -257,6 +258,11 @@ export default function Home() {
         
         //loop through results, check for popularity score mishaps (unplayable duplicate versions, etc.) and try to resolve, delete from array if unable
         results = await checkDuplicateSongs(results)
+        console.table(results)
+
+        //loop thru top X songs (presented as choices for user selection) and check popularity scores
+        results = await checkChoiceSongs(results)
+        console.table(results)
         
         getNicheData(results)
     }
@@ -284,7 +290,7 @@ export default function Home() {
 
         console.log(totalResults)
 
-        if (duration === true || totalResults < duration){
+        if (totalResults < duration){ // USE ' || duration === true' for all time liked songs
             duration = totalResults
         } 
 
@@ -317,6 +323,10 @@ export default function Home() {
             
             //loop through results, check for popularity score mishaps (unplayable duplicate versions, etc.) and try to resolve, delete from array if unable
             results = await checkDuplicateSongs(results)
+            
+            //loop thru top X songs (presented as choices for user selection) and check popularity scores
+            results = await checkChoiceSongs(results)
+            console.table(results)   
             
             getNicheData(results)
         }
@@ -396,10 +406,65 @@ export default function Home() {
                     arr.splice(i,1)
                     i--
                 }
-                console.table(arr)
+                //console.table(arr)
             }
         }
         return arr
+    }
+    
+    async function checkChoiceSongs(arr){
+        //check top checkLimit for outlier popularity results 
+        let sortedData = arr.sort((a,b) => a[4] - b[4]) // sort array by increasing popularity
+
+        let checkLimit = 20 //(TODO: DECIDE IF 100 WORTH? -> nah, 15 or 20?) 
+        if (sortedData.length < checkLimit){ // check here for less than checkLimit song results
+            checkLimit = sortedData.length
+        }
+
+        //check for same song w/ higher popularity score out of top X niche "choice" songs for users
+        for (let i=0; i<checkLimit && i<sortedData.length; i++){
+            if (i !== sortedData.length-1 && sortedData[i][0] === sortedData[i+1][0]){ // check for & delete exact duplicates, just for top X
+                sortedData.splice(i,1)
+                i--
+                continue;
+            }
+            const link = 'https://api.spotify.com/v1/search?' +
+                'q=' + turnIntoQuery(sortedData[i][1],sortedData[i][2]) + '&' + 
+                querystring.stringify({
+                // fill in the body parameters needed for the /top/tracks endpoint
+                    //q: turnIntoQuery(results[i][1],results[i][2]),
+                    type: "track", 
+                    limit: 5,
+            })
+            console.log(link)
+            const dupTrackResponse = await window.fetch(link, {
+                method: 'GET',
+                headers: {
+                    Authorization: 'Bearer ' + accessToken,
+                },
+            });
+            const dupTrackDatas = await dupTrackResponse.json() 
+            let dupTrackData = [...dupTrackDatas.tracks.items] 
+            if(dupTrackData[0]!==undefined){ // MAKE SURE THERE'S DATA!!! -> keep code from crashing if not
+                dupTrackData = dupTrackData.map(song => [song.id,song.name,song.artists[0].name,song.album.images[0].url,song.popularity,song.available_markets])
+                const sortedTrackData = dupTrackData.sort((a,b) => b[4] - a[4])
+                for (let j=0; j<sortedTrackData.length; j++){ //TODO: CHECK taking first popularity sorted result gives an ok result - esp for acoustic/remixes etc (check cosmo pyke social sites acoustic results ex.)
+                    if (sortedData[i][1] === sortedTrackData[j][1] && sortedData[i][2] === sortedTrackData[j][2]){
+                        sortedData[i] = sortedTrackData[j]
+                        break;
+                    }
+                }
+                if (sortedData[i][5].length===0){
+                    sortedData.splice(i,1)  //if first 5 sorted don't match, splice 
+                    i--
+                }
+            } else { // if can't find song results, empty response -> delete that song
+                sortedData.splice(i,1)
+                i--
+            }
+        }
+
+        return sortedData
     }
 
     return (
@@ -430,11 +495,11 @@ export default function Home() {
                           <div className={`${styles.card} ${styles.btn}`} onClick={() => fetchLikedSongs(Duration.HUNDRED_SONGS)}>
                               <h2>100 Liked Songs</h2>
                           </div>
+                          <div className={`${styles.card} ${styles.btn}`} onClick={() => fetchLikedSongs(Duration.TWOFIFTY_SONGS)}>
+                              <h2>250 Liked Songs</h2>
+                          </div>
                           <div className={`${styles.card} ${styles.btn}`} onClick={() => fetchLikedSongs(Duration.FIVEHUNDRED_SONGS)}>
                               <h2>500 Liked Songs</h2>
-                          </div>
-                          <div className={`${styles.card} ${styles.btn}`} onClick={() => fetchLikedSongs(Duration.ALLTIME_SONGS)}>
-                              <h2>All Liked Songs</h2>
                           </div>
                       </div>
                      :

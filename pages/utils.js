@@ -100,7 +100,7 @@ const getNumber = (curGuess) => {
     // sort array by increasing popularity
     const sortedData = arr.sort((a,b) => a[4] - b[4])
   
-     // delete zero popularity and duplicate items - 
+     // delete zero popularity and duplicate items + invert popularity score  // TODO: CHECK ORDER OF THIS VERSUS COMBING THRU TOP X NUMBER?
      console.table(sortedData)
     if (sortedData.length !== 0 && sortedData[0] !== undefined){
         for (let i=0; i<sortedData.length-1; i++){
@@ -117,19 +117,20 @@ const getNumber = (curGuess) => {
     // assign ranks to top N and slice top N for display graphic
     let rank = 1;
     let nicheData = []
-    if (arr.length > 4){
-        nicheData = arr.slice(0,5);
-        for (let i=0; i<5; i++){
+    const displayN = 5 // TODO: DECIDE THIS!
+    if (arr.length >= displayN){ //remember ur checking the i+1 of array!
+        nicheData = arr.slice(0,displayN);
+        for (let i=0; i<displayN; i++){
             nicheData[i][6] = rank;
-            if(arr[i][4] !== arr[i+1][4]){
+            if(i !== displayN-1 && arr[i][4] !== arr[i+1][4]){
                 rank++;
             } 
         }
     } else {
         nicheData = arr;
-        for (let i=0; i<arr.length-1; i++){
+        for (let i=0; i<arr.length; i++){
             nicheData[i][6] = rank;
-            if(arr[i][4] !== arr[i+1][4]){
+            if(i !== arr.length-1 && arr[i][4] !== arr[i+1][4]){
                 rank++;
             } 
         }
